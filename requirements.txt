@@ -1,0 +1,5 @@
+streamlit==1.25.0
+st-paywall==0.0.4
+google-generativeai==0.2.0
+requests==2.31.0
+beautifulsoup4==4.12.2
