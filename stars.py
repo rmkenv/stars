@@ -1,12 +1,8 @@
 import streamlit as st
-from st_paywall import add_auth
 import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-
-# Add authentication
-add_auth(required=True)
 
 # Streamlit page configuration
 st.set_page_config(page_title="STARS Report Chatbot", page_icon="🌟", layout="wide")
@@ -84,63 +80,58 @@ Here's the content from the STARS website:"""]},
         st.error(f"An error occurred: {str(e)}")
         return "An error occurred while processing your request. Please try again."
 
-# Ensure authentication before allowing interaction
-if st.session_state.get('is_authenticated', False):
+# Streamlit interface
+st.title("STARS Report Chatbot")
 
-    # Streamlit interface
-    st.title("STARS Report Chatbot")
+# Information about the chatbot
+st.markdown("""
+### STARS Report Assistance Chatbot
+- This chatbot guides users in completing their STARS report.
+- It helps navigate report sections and summarizes relevant content from the STARS website.
+- It provides URLs and page references to specific STARS guidelines when possible.
+- The chatbot offers advice for filling out report sections, following AASHE guidelines.
+""")
 
-    # Information about the chatbot
-    st.markdown("""
-    ### STARS Report Assistance Chatbot
-    - This chatbot guides users in completing their STARS report.
-    - It helps navigate report sections and summarizes relevant content from the STARS website.
-    - It provides URLs and page references to specific STARS guidelines when possible.
-    - The chatbot offers advice for filling out report sections, following AASHE guidelines.
-    """)
+# Gemini API Key input
+gemini_api_key = st.text_input("Enter your Gemini API Key:", type="password")
 
-    # Gemini API Key input
-    gemini_api_key = st.text_input("Enter your Gemini API Key:", type="password")
+if gemini_api_key:
+    # Initialize the Gemini client
+    genai.configure(api_key=gemini_api_key)
+    model = genai.GenerativeModel('gemini-pro')
 
-    if gemini_api_key:
-        # Initialize the Gemini client
-        genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-pro')
+    # Website URL input (STARS report website)
+    website_url = st.text_input("Enter the STARS website URL (e.g., https://stars.aashe.org):")
 
-        # Website URL input (STARS report website)
-        website_url = st.text_input("Enter the STARS website URL (e.g., https://stars.aashe.org):")
+    if website_url:
+        if website_url != st.session_state.get('last_url', ''):
+            with st.spinner("Loading STARS content..."):
+                st.session_state.website_content = fetch_stars_content(website_url)
+            st.session_state.last_url = website_url
+            st.session_state.messages = []  # Clear previous conversation
+        
+        st.success("STARS content loaded. You can now ask questions about the report!")
 
-        if website_url:
-            if website_url != st.session_state.get('last_url', ''):
-                with st.spinner("Loading STARS content..."):
-                    st.session_state.website_content = fetch_stars_content(website_url)
-                st.session_state.last_url = website_url
-                st.session_state.messages = []  # Clear previous conversation
-            
-            st.success("STARS content loaded. You can now ask questions about the report!")
+        # Display chat history
+        for message in st.session_state.messages:
+            with st.chat_message("user" if st.session_state.messages.index(message) % 2 == 0 else "assistant"):
+                st.write(message)
 
-            # Display chat history
-            for message in st.session_state.messages:
-                with st.chat_message("user" if st.session_state.messages.index(message) % 2 == 0 else "assistant"):
-                    st.write(message)
+        # User input
+        user_input = st.chat_input("Your question about the STARS report:")
 
-            # User input
-            user_input = st.chat_input("Your question about the STARS report:")
+        # Generate response and display
+        if user_input:
+            st.session_state.messages.append(user_input)
+            with st.chat_message("user"):
+                st.write(user_input)
 
-            # Generate response and display
-            if user_input:
-                st.session_state.messages.append(user_input)
-                with st.chat_message("user"):
-                    st.write(user_input)
+            with st.chat_message("assistant"):
+                response = generate_stars_response(user_input, st.session_state.website_content)
+                st.write(response)
 
-                with st.chat_message("assistant"):
-                    response = generate_stars_response(user_input, st.session_state.website_content)
-                    st.write(response)
-
-                st.session_state.messages.append(response)
-        else:
-            st.warning("Please enter the STARS website URL to start chatting.")
+            st.session_state.messages.append(response)
     else:
-        st.warning("Please enter your Gemini API Key to use the chatbot.")
+        st.warning("Please enter the STARS website URL to start chatting.")
 else:
-    st.warning("Please log in to access the chatbot.")
+    st.warning("Please enter your Gemini API Key to use the chatbot.")
